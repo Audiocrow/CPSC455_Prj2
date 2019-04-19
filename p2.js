@@ -1,43 +1,56 @@
 'use strict'
 
-var express = require("express");
-var app = express();
-app.set("view_engine", "ejs");
-var bodyParser = require("body-parser");
+const express = require("express");
+const app = express();
+const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({extended:true}));
-var fs = require("fs");
-var sqlite3 = require('sqlite3');
+const fs = require("fs");
+const sqlite3 = require('sqlite3');
 var db = null;
+const bankDbFile = __dirname + '/bank.db';
+const initDbFile = __dirname + '/init_db.sql';
 
-//Check if db exists
-if(!fs.existsSync('./bank.db')) {
-    //If not, create it by executing the init_db file
-    if(!fs.existsSync('./init_db')) {
-        console.log("You need to create an init_db file!");
+//Check if db exists and if not create it
+if(!fs.existsSync(bankDbFile)) {
+    if(!fs.existsSync(initDbFile)) {
+        console.log("You need to create " + initDbFile + "!");
         return;
     }
-    let data = fs.readFileSync('./init_db');
-    if(data === null) {
-        console.log("Failed to read ./init_db");
+    //Read the schema SQL from init_db.sql
+    let data = fs.readFileSync(initDbFile, 'utf8');
+    if(!data) {
+        console.log("Failed to read " + initDbFile);
         console.log("Skipping creation of database...");
         return;
     }
-    db = new sqlite3.Database('./bank.db', sqlite3.OPEN_CREATE, (err) => {
-        if(err === null) {
+    db = new sqlite3.Database(bankDbFile, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+        if(err) {
             console.log(err);
         }
         else {
-            db.serialize(function() {
-                let q = db.prepare(data);
-                q.finalize();
+            db.exec(data, (err) => {
+                if(err) { console.log(err) };
+                console.log("Initialized the database schema");
             });
         }
     });
-
-    fs.close('./init_db', (err) => {});
+}
+else {
+    db = new sqlite3.Database(bankDbFile);
 }
 
 app.get('/', function(req, resp) {
+    resp.sendFile(__dirname + "/index.html");
+});
+app.get('/login.html', function(req, resp) {
+    resp.sendFile(__dirname + "/login.html");
 });
 
 app.listen(3000);
+
+process.on('SIGTERM', () => {
+    if(db) {
+        db.close();
+    }
+    server.close();
+});
