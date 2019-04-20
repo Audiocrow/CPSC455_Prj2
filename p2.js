@@ -39,10 +39,20 @@ else {
     db = new sqlite3.Database(bankDbFile);
 }
 
-app.get('/', function(req, resp) {
+//res.set('Content-Security-Policy', 'default-src "self"');
+app.get('/', function(req, res) {
     resp.sendFile(__dirname + "/index.html");
 });
-app.get('/login.html', function(req, resp) {
+app.get('/create.html', function(req, res) {
+    resp.sendFile(__dirname + "/create.html");
+});
+app.post('/create.html', function(req, res) {
+    resp.sendFile(__dirname + "/create.html");
+});
+app.get('/login.html', function(req, res) {
+    resp.sendFile(__dirname + "/login.html");
+});
+app.post('/login.html', function(req, res) {
     resp.sendFile(__dirname + "/login.html");
 });
 
