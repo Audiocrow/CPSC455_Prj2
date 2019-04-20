@@ -1,23 +1,24 @@
-CREATE TABLE user (
+CREATE TABLE users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name    TEXT    NOT NULL,
-    email   TEXT    NOT NULL UNIQUE,
-    pwd     TEXT    NOT NULL
+    first_name    TEXT    NOT NULL,
+    last_name   TEXT    NOT NULL,
+    address   TEXT    NOT NULL,
+    pwd_hash     TEXT    NOT NULL,
+    UNIQUE (first_name, last_name)
 );
-CREATE INDEX user_id_idx ON user (user_id);
-CREATE INDEX user_email_idx ON user (email);
-CREATE TABLE account (
+CREATE INDEX user_id_idx ON users (user_id);
+CREATE TABLE accounts (
     acc_id INTEGER PRIMARY KEY AUTOINCREMENT,
     balance REAL
 );
-CREATE INDEX acc_id_idx ON account (acc_id);
-CREATE TABLE useraccount (
+CREATE INDEX acc_id_idx ON accounts (acc_id);
+CREATE TABLE useraccounts (
     user_id INTEGER,
     acc_id  INTEGER,
-    FOREIGN KEY (user_id) REFERENCES user(user_id),
-    FOREIGN KEY (acc_id) REFERENCES account(acc_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (acc_id) REFERENCES accounts(acc_id),
     UNIQUE (user_id, acc_id)
 );
-CREATE INDEX usracc_user_idx ON useraccount (user_id);
-CREATE INDEX usracc_acc_idx ON useraccount (acc_id);
-CREATE INDEX usracc_useracc_idx ON useraccount (user_id, acc_id);
+CREATE INDEX usracc_user_idx ON useraccounts (user_id);
+CREATE INDEX usracc_acc_idx ON useraccounts (acc_id);
+CREATE INDEX usracc_useracc_idx ON useraccounts (user_id, acc_id);
