@@ -6,18 +6,23 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<!-- Submission script derived from https://stackoverflow.com/a/19843756 -->
 	<script>
+	'use strict'
 	function submitForm(form) {
+		if(!form.checkValidity()) { return; }
 		let xhr = new XMLHttpRequest();
-		let action = form.target || form.explicitOriginalTarget;
-		xhr.onload = function() { alert("Got " + xhr.responseText); };
-		xhr.open("post", action, true);
-		let data = "<user><first_name>" + form.fname + "</first_name>" +
-			"<last_name>" + form.lname + "</last_name>" +
-			"<email>" + form.email + "</email>" +
-			"<password>" + form.pwd + "</password></user>";
+		xhr.onreadystatechange = function() {
+			if (this.readyState == 4 && this.status == 200) {
+				alert("Got " + xhr.responseText);
+			}
+		};
+		xhr.open("POST", form.action, true);
+		let data = "<first_name>" + form.fname.value + "</first_name>" +
+			"<last_name>" + form.lname.value + "</last_name>" +
+			"<address>" + form.address.value + "</address>" +
+			"<password>" + form.pwd.value + "</password>";
+		console.log(data);
 		xhr.setRequestHeader("Content-Type", "application/xml");
 		xhr.send(data);
-		return false;
 	}
 	</script>
 </head>
@@ -25,25 +30,21 @@
 <title>New User Registration</title>
 
 <body>
-	<!-- Ensure that the submitForm function runs from anywhere the form is submitted -->
-	<body onload="var forms = document.getElementById('reg_form');
-              for (var i = 0; i < forms.length; ++i)
-                 forms.item(i).onsubmit = submitForm;">
 	<fieldset>
-    <form action="register.xml" id="reg_form" method="post">
-        First Name: <input type="text" id="fname" required><br>
-        Last Name: <input type="text" id="lname" required><br>
-        E-Mail: <input type="email" id="email" required><br>
+    <form method="post" action="register.html" id="reg_form" onsubmit="submitForm(this);return false;">
+        First Name: <input type="text" id="fname" title="Alphabet only" pattern="[a-zA-Z]+" required><br>
+        Last Name: <input type="text" id="lname" title="Alphabet only" pattern="[a-zA-Z]+" required><br>
+        Address: <input type="address" id="text" title="Alphanumeric plus .,# only" pattern="[a-zA-Z#.,]+" required><br>
         Password: <input type="password" id="pwd" minlength=10 maxlength=128 required onkeyup="validatePassword()"><br>
-		<div id="pwd_requirements" hidden=true>
+		<details style="border:1px solid red;" id="pwd_requirements" open=true hidden=true>
 			Password must meet at least 3 of the following requirements:
 			<ul><li>1 uppercase character<br>
 			<li>1 lowercase character<br>
 			<li>1 digit<br>
 			<li>1 special character<br></ul>
-			In addition to being between 10 to 128 characters long.</div>
+			In addition to being between 10 to 128 characters long.</details>
         Confirm Password: <input type="password" id="confirm_pwd" required onkeyup="validatePassword()"><br>
-        <input type="submit" value="Register">
+        <input type="submit">
 	</form>
 	<script>'use strict'
 	function validatePassword() {

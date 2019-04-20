@@ -3,7 +3,9 @@
 const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
-app.use(bodyParser.urlencoded({extended:true}));
+require("body-parser-xml")(bodyParser);
+app.use(bodyParser.xml());
+const parseString = require("xml2js").parseString;
 const fs = require("fs");
 const sqlite3 = require('sqlite3');
 var db = null;
@@ -41,19 +43,40 @@ else {
 
 //res.set('Content-Security-Policy', 'default-src "self"');
 app.get('/', function(req, res) {
-    resp.sendFile(__dirname + "/index.html");
+    res.sendFile(__dirname + "/index.html");
 });
 app.get('/create.html', function(req, res) {
-    resp.sendFile(__dirname + "/create.html");
+    res.sendFile(__dirname + "/create.html");
 });
 app.post('/create.html', function(req, res) {
-    resp.sendFile(__dirname + "/create.html");
+    res.sendFile(__dirname + "/create.html");
 });
-app.get('/login.html', function(req, res) {
-    resp.sendFile(__dirname + "/login.html");
+app.get('/register.html', function(req, res) {
+    res.sendFile(__dirname + "/register.html");
 });
-app.post('/login.html', function(req, res) {
-    resp.sendFile(__dirname + "/login.html");
+app.post('/register.html', function(req, res) {
+    let form_data = JSON.stringify(req.body);
+    let pwd = form_data["password"];
+    //Check if the password meets OWASP's requirements from https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Authentication_Cheat_Sheet.md#password-complexity
+    //Note: these are the same requirements the front-end attempts to enforce
+    let valid = true;
+	if(/(.)\1\1/.test(form_data)) {
+		valid = false;
+	}
+	let criteria = 0;
+	if(/[a-z]/.test(pwd.value)) { criteria++; }
+	if(/[A-Z]/.test(pwd.value)) { criteria++; }
+	if(/[0-9]/.test(pwd.value)) { criteria++; }
+	if(/[ !@#$%^&*)(_\-+=}\]{\["':;?/>.<,]/.test(pwd.value)) { criteria++; }
+	let pwd_requirements = document.getElementById("pwd_requirements");
+	if(criteria < 3) {
+		valid = false;
+    }
+	if(!valid) {
+        res.status(400).end();
+    }
+    res.setHeader("Content-Type", "application/xml");
+    res.send("Heres some stuff LOLbutts");
 });
 
 app.listen(3000);
