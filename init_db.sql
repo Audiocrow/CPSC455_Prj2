@@ -7,6 +7,7 @@ CREATE TABLE users (
     UNIQUE (first_name, last_name)
 );
 CREATE INDEX user_id_idx ON users (user_id);
+CREATE INDEX user_name_idx ON users (first_name, last_name);
 CREATE TABLE accounts (
     acc_id INTEGER PRIMARY KEY AUTOINCREMENT,
     balance REAL

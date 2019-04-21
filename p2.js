@@ -22,6 +22,17 @@ app.use(csp({
         styleSrc: ["'self'","'unsafe-inline'"]
     },
 loose:false}));
+const session = require("client-sessions");
+app.use(session({
+    cookieName: "session",
+    secret: "gd89s7fd89sgSADIFJ(#$RL@#SAGd897gfidgd",
+    duration: 180000, //3 Minutes
+    activeDuration: 180000,
+    httpOnly: true,
+    secure: true,
+    ephemeral: true
+}));
+
 var db = null;
 const bankDbFile = __dirname + '/bank.db';
 const initDbFile = __dirname + '/init_db.sql';
@@ -54,15 +65,56 @@ if(!fs.existsSync(bankDbFile)) {
 else {
     db = new sqlite3.Database(bankDbFile);
 }
-
 app.get('/', function(req, res) {
-    res.sendFile(__dirname + "/index.html");
+    if(!req.session || !req.session.user) {
+        res.redirect("/login");
+    }
+    else { res.status(200).end(); }
 });
-app.get('/create.html', function(req, res) {
-    res.sendFile(__dirname + "/create.html");
+app.get('/login', function(req, res) {
+    res.sendFile(__dirname + "/login.html");
 });
-app.post('/create.html', function(req, res) {
-    res.sendFile(__dirname + "/create.html");
+app.post('/login', function(req, res) {
+    if(!db) { res.status(503).end(); } //Can't login if the db is down
+    if(req.session.attempts && req.session.attempts > 5) {
+        res.status(403).send("You have failed to login too many times, please try again later.");
+    }
+    let form_data = req.body["user"];
+    //Decode the XML-escapes
+    let first_name = decodeURIComponent(form_data.first_name);
+    let last_name = decodeURIComponent(form_data.last_name);
+    let pwd = decodeURIComponent(form_data.password);
+    //Find this user in the database
+    let query = db.prepare("SELECT * FROM users WHERE first_name=? AND last_name=?");
+    query.get([first_name, last_name], async function(err, row) {
+        if(err || !row) {
+            if(err) { console.log(err); }
+            res.status(404).send("No such user");
+            return;
+        }
+        else {
+            try {
+                //Use argon2 to verify the password matches the hash
+                if(await argon2.verify(row.pwd_hash, pwd)) {
+                    //Save the user's user_id from the database for quick future lookups and to serve as their session
+                    req.session.user = row.user_id;
+                    res.redirect("/");
+                }
+                else {
+                    res.status(401).send("Incorrect password.");
+                    if(req.session.attempts) {
+                        req.session.attempts++;
+                        console.log(req.session.attempts + " failed attempts to login as " + first_name + " " + last_name);
+                    } else { req.session.attempts = 1; }
+                    return;
+                }
+            } catch(err) { console.log(err); }
+        }
+    });
+});
+app.get('/logout', function(req, res) {
+    req.session.reset();
+    req.redirect("/");
 });
 app.get('/register.html', function(req, res) {
     res.sendFile(__dirname + "/register.html");
@@ -71,6 +123,7 @@ app.get('/register.html', function(req, res) {
 //On invalid, return BAD REQUEST.
 //The front-end is also performing validation, so invalid requests should only happen if they bypass it somehow.
 app.post('/register.html', async function(req, res) {
+    if(!db) { res.status(503).end(); } //Can't create users if the db is down
     let form_data = req.body["user"];
     //First decode the XML-escapes, but then escape for HTML use with xssFilters
     let first_name = xssFilters.inHTMLData(decodeURIComponent(form_data.first_name));
@@ -103,7 +156,6 @@ app.post('/register.html', async function(req, res) {
     }
     //Everything is fine, add this person to the database
     //Using prepared statements to prevent injection
-    if(!db) { res.status(503).end(); } //Can't create users if the db is down
     let query = db.prepare("INSERT INTO users(first_name,last_name,address,pwd_hash) VALUES(?,?,?,?)");
     try {
         const pwd_hash = await argon2.hash(pwd);
@@ -114,7 +166,6 @@ app.post('/register.html', async function(req, res) {
                 return;
             }
             console.log("Created new user " + first_name + " " + last_name + " at " + address);
-            res.location("/");
             res.redirect(201, "/");
         });
     } catch(err) {
