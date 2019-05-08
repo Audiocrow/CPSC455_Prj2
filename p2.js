@@ -65,11 +65,71 @@ if(!fs.existsSync(bankDbFile)) {
 else {
     db = new sqlite3.Database(bankDbFile);
 }
+
+//Use this function on queries requiring only a user_id, and the callback will be called when the database has responded
+function requireSesh(req, query, callback) {
+    if(req.session && req.session.user) {
+        let statement = db.prepare(query);
+        statement.get(req.session.user, function(err, row) {
+            if(err || !row) {
+                if(err) { console.log(err); }
+                req.session.reset();
+                res.redirect("/login");
+            }
+            callback(row);
+        });
+    }
+    else {
+        req.session.reset();
+        res.redirect("/login");
+    }
+}
+
 app.get('/', function(req, res) {
     if(!req.session || !req.session.user) {
         res.redirect("/login");
     }
-    else { res.status(200).end(); }
+    else {
+        //If the user is logged in, say hello
+        let page = "";
+        requireSesh(req, "SELECT first_name,last_name FROM users WHERE user_id=?", function(row) {
+            //HTML escape their name just in case
+            page = "Welcome back " + xssFilters.inHTMLData(row.first_name) + " " +  xssFilters.inHTMLData(row.last_name) + "<br>";
+            let account_query = db.prepare("SELECT acc_id,balance FROM accounts WHERE user_id=?");
+            //And display their accounts and balances
+            account_query.all(req.session.user, function(err,accounts) {
+                if(!err && accounts && accounts.length>0) {
+                    page += "<table id='accounts'><tr><th>Account#</th><th>Balance</th></tr>";
+                    for(let account=0; account<accounts.length; account++) {
+                        page += "<tr><td>" + accounts[account].acc_id + "</td><td>" + accounts[account].balance + "</td></tr>";
+                    }
+                    page += "</table>";
+                }
+                page += "<script src='home.js'></script>";
+                page += "<button id='add_acc'>Add an Account</button><br>";
+                page += "<button id='send_dosh'>Transfer Money</button>";
+                page += "<button id='logout'>Logout</button>";
+                res.send(page);
+            });
+        });
+    }
+});
+app.get('/create', function(req, res) {
+    if(req.session && req.session.user) {
+        let query = db.prepare("INSERT INTO accounts(balance,user_id) VALUES (?, ?)");
+        query.run([0, req.session.user], function(err) {
+            if(err) {
+                res.status(503).send("Failed to create a new account - please try again later");
+                return;
+            }
+            res.setHeader("Content-Type", "text/xml");
+            res.send("<account><id>" + encodeURIComponent(this.lastID) + "</id><balance>0</balance></account>");
+        });
+    }
+    else {
+        req.session.reset();
+        res.redirect("/");
+    }
 });
 app.get('/login', function(req, res) {
     res.sendFile(__dirname + "/login.html");
@@ -114,7 +174,7 @@ app.post('/login', function(req, res) {
 });
 app.get('/logout', function(req, res) {
     req.session.reset();
-    req.redirect("/");
+    res.redirect("/");
 });
 app.get('/register.html', function(req, res) {
     res.sendFile(__dirname + "/register.html");
@@ -130,7 +190,6 @@ app.post('/register.html', async function(req, res) {
     let last_name = xssFilters.inHTMLData(decodeURIComponent(form_data.last_name));
     let address = xssFilters.inHTMLData(decodeURIComponent(form_data.address));
     let pwd = decodeURIComponent(form_data.password);
-    console.log(pwd);
     //Check if the password meets OWASP's requirements from https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Authentication_Cheat_Sheet.md#password-complexity
     //Note: these are the same requirements the front-end attempts to enforce
 	if(/(.)\1\1/.test(pwd)) {
@@ -149,7 +208,6 @@ app.post('/register.html', async function(req, res) {
     //Check to see if the supplied name and address are reasonable
     let name_reg = /[a-zA-Z]{2,32}/;
     let address_reg = /[a-zA-Z0-9&,.# -]{4,128}/;
-    console.log(first_name + " " + last_name + " at " + address);
     if(!name_reg.test(first_name) || !name_reg.test(last_name) || !address_reg.test(address)) {
         res.status(400).send("Name or address is invalid");
         return;
@@ -166,6 +224,9 @@ app.post('/register.html', async function(req, res) {
                 return;
             }
             console.log("Created new user " + first_name + " " + last_name + " at " + address);
+            req.session.user = this.lastID;
+            let query2 = db.prepare("INSERT INTO accounts(balance,user_id) VALUES(?, ?)");
+            query2.run([40, this.lastID]); //Give the new user an account with $40 for testing purposes
             res.redirect(201, "/");
         });
     } catch(err) {

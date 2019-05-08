@@ -7,8 +7,8 @@ function attemptLogin(e) {
     if(!fname || !lname || !pwd) { return 1; }
     let xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
-        if(this.readyState == 4) {
-            if(this.status != 200) { alert(this.responseText); }
+        if(this.readyState === 4) {
+            if(this.status !== 200) { alert(this.responseText); }
             else { window.location.href = '/'; }
         }
     };

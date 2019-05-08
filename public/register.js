@@ -8,8 +8,8 @@ function submitForm(e) {
     e.preventDefault();
     let xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
-        if (this.readyState == 4) {
-            if(this.status == 201) {
+        if (this.readyState === 4) {
+            if(this.status === 201) {
                 window.location.href = "/";
             }
             else { alert(this.responseText); }
