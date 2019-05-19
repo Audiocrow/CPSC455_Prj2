@@ -16,10 +16,13 @@ function submitForm(e) {
         }
     };
     xhr.open("POST", form.action, true);
+    //The form elements need to be encoded so the XML parser in the server doesn't get confused
     let data = "<user><first_name>" + encodeURIComponent(form.fname.value) + "</first_name>" +
         "<last_name>" + encodeURIComponent(form.lname.value) + "</last_name>" +
         "<address>" + encodeURIComponent(form.address.value) + "</address>" +
         "<password>" + encodeURIComponent(form.pwd.value) + "</password></user>";
+    /*Note: I tested trying to sneak already-encoded text into the password e.g. "%%253"
+        -   js' encoding and decoding scheme is smart enough to keep the password exactly as it was originally after decoding */
     xhr.setRequestHeader("Content-Type", "application/xml");
     xhr.send(data);
 }

@@ -66,54 +66,38 @@ else {
     db = new sqlite3.Database(bankDbFile);
 }
 
-//Use this function on queries requiring only a user_id, and the callback will be called when the database has responded
-function requireSesh(req, query, callback) {
-    if(req.session && req.session.user) {
-        let statement = db.prepare(query);
-        statement.get(req.session.user, function(err, row) {
-            if(err || !row) {
-                if(err) { console.log(err); }
-                req.session.reset();
-                res.redirect("/login");
-            }
-            callback(row);
-        });
-    }
-    else {
-        req.session.reset();
-        res.redirect("/login");
-    }
-}
-
 app.get('/', function(req, res) {
     if(!req.session || !req.session.user) {
         res.redirect("/login");
     }
     else {
-        //If the user is logged in, say hello
-        let page = "";
-        requireSesh(req, "SELECT first_name,last_name FROM users WHERE user_id=?", function(row) {
-            //HTML escape their name just in case
-            page = "Welcome back " + xssFilters.inHTMLData(row.first_name) + " " +  xssFilters.inHTMLData(row.last_name) + "<br>";
-            let account_query = db.prepare("SELECT acc_id,balance FROM accounts WHERE user_id=?");
-            //And display their accounts and balances
-            account_query.all(req.session.user, function(err,accounts) {
-                if(!err && accounts && accounts.length>0) {
-                    page += "<table id='accounts'><tr><th>Account#</th><th>Balance</th></tr>";
-                    for(let account=0; account<accounts.length; account++) {
-                        page += "<tr><td>" + accounts[account].acc_id + "</td><td>" + accounts[account].balance + "</td></tr>";
-                    }
-                    page += "</table>";
+        res.sendFile(__dirname + "/index.html");
+    }
+});
+
+//@status - sends the user's name and accounts as XML
+app.get('/status', function(req, res) {
+    if(!req.session || !req.session.user) {
+        res.redirect("/login");
+    }
+    else {
+        res.set("Content-Type", "application/xml");
+        let account_query = db.prepare("SELECT acc_id,balance FROM accounts WHERE user_id=?");
+        let xml = "<user><name>" + req.session.name + "</name>";
+        //And display their accounts and balances
+        account_query.all(req.session.user, function(err,accounts) {
+            if(!err && accounts && accounts.length > 0) {
+                for(let account of accounts) {
+                    xml += "<account><id>" + account.acc_id + "</id>"
+                        + "<balance>" + account.balance + "</balance></account>";
                 }
-                page += "<script src='home.js'></script>";
-                page += "<button id='add_acc'>Add an Account</button><br>";
-                page += "<button id='send_dosh'>Transfer Money</button>";
-                page += "<button id='logout'>Logout</button>";
-                res.send(page);
-            });
+            }
+            xml += "</user>";
+            res.send(xml);
         });
     }
 });
+
 app.get('/create', function(req, res) {
     if(req.session && req.session.user) {
         let query = db.prepare("INSERT INTO accounts(balance,user_id) VALUES (?, ?)");
@@ -123,7 +107,7 @@ app.get('/create', function(req, res) {
                 return;
             }
             res.setHeader("Content-Type", "text/xml");
-            res.send("<account><id>" + encodeURIComponent(this.lastID) + "</id><balance>0</balance></account>");
+            res.send("<account><id>" + this.lastID + "</id><balance>0</balance></account>");
         });
     }
     else {
@@ -131,9 +115,11 @@ app.get('/create', function(req, res) {
         res.redirect("/");
     }
 });
+
 app.get('/login', function(req, res) {
     res.sendFile(__dirname + "/login.html");
 });
+
 app.post('/login', function(req, res) {
     if(!db) { res.status(503).end(); } //Can't login if the db is down
     if(req.session.attempts && req.session.attempts > 5) {
@@ -156,8 +142,11 @@ app.post('/login', function(req, res) {
             try {
                 //Use argon2 to verify the password matches the hash
                 if(await argon2.verify(row.pwd_hash, pwd)) {
-                    //Save the user's user_id from the database for quick future lookups and to serve as their session
+                    //Save the user's info from the database for quick future lookups and to serve as their session
                     req.session.user = row.user_id;
+                    //Encoding special characters because the name will be used in html and/or javascript contexts
+                    //This should have happened already when the account was created so this may be redundant
+                    req.session.name = xssFilters.inHTMLData(row.first_name) + " " + xssFilters.inHTMLData(row.last_name);
                     res.redirect("/");
                 }
                 else {
@@ -224,7 +213,9 @@ app.post('/register.html', async function(req, res) {
                 return;
             }
             console.log("Created new user " + first_name + " " + last_name + " at " + address);
+            //Setting up the session using their newly assigned primary key
             req.session.user = this.lastID;
+            req.session.name = first_name + " " + last_name; //These are filtered above to be ok in HTML context
             let query2 = db.prepare("INSERT INTO accounts(balance,user_id) VALUES(?, ?)");
             query2.run([40, this.lastID]); //Give the new user an account with $40 for testing purposes
             res.redirect(201, "/");

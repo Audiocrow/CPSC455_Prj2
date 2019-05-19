@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="home.js"></script>
+    <title>My Probably Secure Bank - Home</title>
+</head>
+<body>
+    <div>
+        Hello <span class="name"></span>!
+    </div>
+    <style type="text/css">
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            padding: 0.25em;
+        }
+        a {
+            color: black;
+            border: 1px solid black;
+            border-radius: 1px;
+            background-color: lightblue;
+            padding: 0.25em;
+        }
+        a:hover { color:yellow; }
+        a#logout {
+            border-radius: 0px;
+        }
+    </style>
+    <table id="accounts">
+        <caption>Accounts</caption>
+    </table><br>
+    <div id="below_accounts">
+        <a href="/create" id="create">Make a new account?</a><br>
+        <a href="/send" id="send">Transfer</a>
+        <a href="/logout" id="logout">Logout</a>
+    </div>
+</body>
+</html>
