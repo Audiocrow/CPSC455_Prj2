@@ -62,9 +62,23 @@ function transfer() {
     SendRequest("POST", "transfer", function() { SendRequest("GET", "status", function(xhr) { update(xhr); alert("Success!"); }); }, 200, data, "application/xml",
         function(xhr) { alert(xhr.responseText); });
 }
-//For a user depositing into their account - allows for withdraws with negative numbers
-//If is_deposit is false we know the withdraw button was clicked and not deposit.
-function deposit(is_deposit) {
+
+//For a user depositing into their account
+//The server handles validation
+function deposit() {
+    let data = "<deposit><account><id>" + encodeURIComponent(document.getElementById("into").value) + "</id></account>"
+        + "<amount>" + encodeURIComponent(parseFloat(document.getElementById("d_amt").value)) + "</amount></deposit>";
+    SendRequest("POST", "deposit", function() { SendRequest("GET", "status", function(xhr) { update(xhr); alert("Success!"); }); }, 200, data, "application/xml",
+        function(xhr) { alert(xhr.responseText); });
+}
+
+//For a user withdrawing from an account
+//The server handles validation
+function withdraw() {
+    let data = "<withdraw><account><id>" + encodeURIComponent(document.getElementById("outof").value) + "</id></account>"
+        + "<amount>" + encodeURIComponent(parseFloat(document.getElementById("w_amt").value)) + "</amount></withdraw>";
+    SendRequest("POST", "withdraw", function() { SendRequest("GET", "status", function(xhr) { update(xhr); alert("Success!"); }); }, 200, data, "application/xml",
+        function(xhr) { alert(xhr.responseText); });
 }
 
 function unhide(elem) {
@@ -80,6 +94,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     document.getElementById("create").addEventListener('click', createAcc);
     document.getElementById("t_btn").addEventListener('click', transfer);
-    document.getElementById("d_btn").addEventListener('click', function() { deposit(true); });
-    document.getElementById("w_btn").addEventListener('click', function() { deposit(false); });
+    document.getElementById("d_btn").addEventListener('click', deposit);
+    document.getElementById("w_btn").addEventListener('click', withdraw);
 });

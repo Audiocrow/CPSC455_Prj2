@@ -116,6 +116,78 @@ app.get('/create', function(req, res) {
     }
 });
 
+//Pretending the non-existent money is magically accepted on a deposit
+//Values smaller than a cent (10^-3) are truncated/ignored
+app.post('/deposit', function(req, res) {
+    if(!req.session || !req.session.user) {
+        req.session.reset();
+        res.redirect("/");
+        return;
+    }
+    let data = req.body["deposit"];
+    if(data.amount) {
+        data.amount = Number(Number(decodeURIComponent(data.amount)).toFixed(2)); //Can't go smaller than 1 cent
+    }
+    if(!data.amount || data.amount <= 0.009 || data.amount > Number.MAX_VALUE) {
+        res.status(400).send("Invalid amount specified!");
+        return;
+    }
+    db.prepare("SELECT balance FROM accounts WHERE user_id=? AND acc_id=?").get([req.session.user, data.account.id], function(err, row) {
+        if(err || !row) {
+            console.log(err);
+            res.status(400).send("Invalid source account!");
+            return;
+        }
+        db.prepare("UPDATE accounts SET balance=? WHERE acc_id=?").run([Number(row.balance+data.amount).toFixed(2), data.account.id], function(err) {
+            if(err) {
+                console.log(err);
+                res.status(503).send();
+                return;
+            }
+            res.status(200).send();
+        });
+    });
+});
+
+//Pretending the non-existent money magically gets sent somewhere on a withdrawal
+//Values smaller than a cent are truncated/ignored
+app.post('/withdraw', function(req, res) {
+    if(!req.session || !req.session.user) {
+        req.session.reset();
+        res.redirect("/");
+        return;
+    }
+    let data = req.body["withdraw"];
+    if(data.amount) {
+        data.amount = Number(Number(decodeURIComponent(data.amount)).toFixed(2)); //Can't go smaller than 1 cent
+    }
+    if(!data.amount || data.amount <= 0.009 || data.amount > Number.MAX_VALUE) {
+        res.status(400).send("Invalid amount specified!");
+        return;
+    }
+    db.prepare("SELECT balance FROM accounts WHERE user_id=? AND acc_id=?").get([req.session.user, data.account.id], function(err, row) {
+        if(err || !row) {
+            console.log(err);
+            res.status(400).send("Invalid source account!");
+            return;
+        }
+        if(Number(row.balance) < data.amount) {
+            res.status(400).send("Account funds are insufficient for the specified value.");
+            return;
+        }
+        db.prepare("UPDATE accounts SET balance=? WHERE acc_id=?").run([Number(row.balance-data.amount).toFixed(2), data.account.id], function(err) {
+            if(err) {
+                console.log(err);
+                res.status(503).send();
+                return;
+            }
+            res.status(200).send();
+        });
+    });
+});
+
+//For a user transferring dosh between their Accounts
+//Values smaller than a cent are truncated/ignored
 app.post('/transfer', function(req, res) {
     if(!req.session || !req.session.user) {
         req.session.reset();
@@ -123,6 +195,7 @@ app.post('/transfer', function(req, res) {
         return;
     }
     let data = req.body["transfer"];
+    data.amount = Number(Number(decodeURIComponent(data.amount)).toFixed(2)); //Can't go smaller than 1 cent
     if(data && data["account"] && data["account"][0] && data["account"][1]) {
         if(data["account"][0].id === data["account"][1].id) {
             res.status(400).send("Source and Destination account must be different!");
@@ -137,19 +210,18 @@ app.post('/transfer', function(req, res) {
             else if(row.acc_id === parseInt(decodeURIComponent(data.account[1].id))) { to = row; }
             if(from && to) { break; }
         }
-        data.amount = Number(data.amount).toFixed(2); //Can't go smaller than 1 cent
         if(!from) { res.status(400).send("Invalid source account!"); return; }
         else if(!to) { res.status(400).send("Invalid destination account!"); return; }
-        else if(from.balance >= Number(data.amount) && Number(data.amount) >= 0.01) {
+        else if(from.balance >= data.amount && data.amount >= 0.01) {
             let query = db.prepare("UPDATE accounts SET balance=? WHERE acc_id=?");
             //Callback hell....
-            query.run([from.balance-Number(data.amount),from.acc_id], function(err) {
+            query.run([from.balance-data.amount,from.acc_id], function(err) {
                 if(err) {
                     console.log(err);
                     res.status(503).send();
                     return;
                 }
-                query.run([to.balance+Number(data.amount),to.acc_id], function(err) {
+                query.run([to.balance+data.amount,to.acc_id], function(err) {
                     //TODO: revert changes if an error occurred?
                     if(err) {
                         console.log(err);
