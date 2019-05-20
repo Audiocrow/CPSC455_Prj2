@@ -106,8 +106,8 @@ app.get('/create', function(req, res) {
                 res.status(503).send("Failed to create a new account - please try again later");
                 return;
             }
-            res.setHeader("Content-Type", "text/xml");
-            res.send("<account><id>" + this.lastID + "</id><balance>0</balance></account>");
+            res.setHeader("Content-Type", "application/xml");
+            res.status(201).send("<account><id>" + this.lastID + "</id><balance>0</balance></account>");
         });
     }
     else {
