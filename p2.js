@@ -116,6 +116,54 @@ app.get('/create', function(req, res) {
     }
 });
 
+app.post('/transfer', function(req, res) {
+    if(!req.session || !req.session.user) {
+        req.session.reset();
+        res.redirect("/");
+        return;
+    }
+    let data = req.body["transfer"];
+    if(data && data["account"] && data["account"][0] && data["account"][1]) {
+        if(data["account"][0].id === data["account"][1].id) {
+            res.status(400).send("Source and Destination account must be different!");
+            return;
+        }
+    }
+    db.prepare("SELECT * FROM accounts WHERE user_id=?").all([req.session.user], function(err, rows) {
+        let from = null;
+        let to = null;
+        for(let row of rows) {
+            if(row.acc_id === parseInt(decodeURIComponent(data.account[0].id))) { from = row; }
+            else if(row.acc_id === parseInt(decodeURIComponent(data.account[1].id))) { to = row; }
+            if(from && to) { break; }
+        }
+        data.amount = Number(data.amount).toFixed(2); //Can't go smaller than 1 cent
+        if(!from) { res.status(400).send("Invalid source account!"); return; }
+        else if(!to) { res.status(400).send("Invalid destination account!"); return; }
+        else if(from.balance >= Number(data.amount) && Number(data.amount) >= 0.01) {
+            let query = db.prepare("UPDATE accounts SET balance=? WHERE acc_id=?");
+            //Callback hell....
+            query.run([from.balance-Number(data.amount),from.acc_id], function(err) {
+                if(err) {
+                    console.log(err);
+                    res.status(503).send();
+                    return;
+                }
+                query.run([to.balance+Number(data.amount),to.acc_id], function(err) {
+                    //TODO: revert changes if an error occurred?
+                    if(err) {
+                        console.log(err);
+                        res.status(503).send();
+                        return;
+                    }
+                    else { res.status(200).send(); return; }
+                });
+            });
+        }
+        else { res.status(400).send("An invalid quantity was specified!"); }
+    });
+});
+
 app.get('/login', function(req, res) {
     res.sendFile(__dirname + "/login.html");
 });

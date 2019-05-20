@@ -1,17 +1,17 @@
-//Send an XMLHttpRequest of type "method" to location "action" and execute callback() upon success
-//If specified, expected_status is the expected successful response code from the request
-//If specified, error_callback() is called instead if an error occurs
-function SendRequest(method, action, callback, expected_status=200, error_callback=null) {
+//Send an XMLHttpRequest of type "method" to location "action" alongside "data" and execute callback() upon success
+//If specified, expected_status is the expected successful response code
+//If specified, error_callback() is called instead on non-success
+function SendRequest(method, action, callback, expected_status=200, data=null, ctype="text/plain", error_callback=null) {
     let xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
         if(this.readyState === 4 && this.status === expected_status) {
             callback(this);
         }
-        else if(error_callback) { error_callback(this); }
+        else if(this.readyState === 4 && error_callback) { error_callback(this); }
     };
     xhr.open(method, action);
-    xhr.setRequestHeader("Content-Type", "text/plain");
-    xhr.send();
+    xhr.setRequestHeader("Content-Type", ctype);
+    xhr.send(data);
 }
 
 function update(xhr) {
@@ -53,7 +53,14 @@ function createAcc() {
 }
 
 //For a user transferring money between their accounts
+//The server handles validation
 function transfer() {
+    //Place the selections and amount into XML format
+    let data = "<transfer><account><id>" + encodeURIComponent(document.getElementById("t_from").value) + "</id></account>"
+        + "<account><id>" + encodeURIComponent(document.getElementById("t_to").value) + "</id></account>"
+        + "<amount>" + encodeURIComponent(parseFloat(document.getElementById("t_amt").value)) + "</amount></transfer>";
+    SendRequest("POST", "transfer", function() { SendRequest("GET", "status", function(xhr) { update(xhr); alert("Success!"); }); }, 200, data, "application/xml",
+        function(xhr) { alert(xhr.responseText); });
 }
 //For a user depositing into their account - allows for withdraws with negative numbers
 //If is_deposit is false we know the withdraw button was clicked and not deposit.
