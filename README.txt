@@ -9,7 +9,7 @@ Dependencies:
 Instructions:
 Please first have your mysql server running
 As a mysql root user, please have mysql execute init_db.sql
-The command for this is usually "mysql -u root -p < init_db.sql"
+The command for this is usually "sudo mysql -u root -p < init_db.sql"
 run "node p3.js"
 direct your browser to localhost:3000
 
