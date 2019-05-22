@@ -11,7 +11,7 @@ Please first have your mysql server running
 As a mysql root user, please have mysql execute init_db.sql
 The command for this is usually "sudo mysql -u root -p < init_db.sql"
 run "node p3.js"
-direct your browser to localhost:3000
+direct your browser to https://localhost:3000
 
 Overview:
 This application will create a bank.db sqlite3 file if it does not exist.
